@@ -101,7 +101,10 @@ export async function getPath(): Promise<string> {
   }`;
 }
 
-export async function configureCmakeNinja(folder: Uri): Promise<boolean> {
+export async function configureCmakeNinja(
+  folder: Uri,
+  buildType?: string
+): Promise<boolean> {
   if (process.platform !== "win32" && folder.fsPath.includes("\\")) {
     const errorMsg =
       "CMake currently does not support folder names with backslashes.";
@@ -200,7 +203,8 @@ export async function configureCmakeNinja(folder: Uri): Promise<boolean> {
             pythonPath.includes("/")
               ? `-DPython3_EXECUTABLE="${pythonPath.replaceAll("\\", "/")}" `
               : ""
-          }` + `-G Ninja -B ./build "${folder.fsPath}"`;
+          }` + `-G Ninja -B ./build "${folder.fsPath}"`
+          + (buildType ? ` -DCMAKE_BUILD_TYPE=${buildType}` : "");
 
         await new Promise<void>((resolve, reject) => {
           // use exec to be able to cancel the process
@@ -256,7 +260,7 @@ export async function cmakeUpdateBoard(
   folder: Uri,
   newBoard: string
 ): Promise<boolean> {
-  // TODO: support for scaning for seperate locations of the CMakeLists.txt file in the project
+  // TODO: support for scanning for separate locations of the CMakeLists.txt file in the project
   const cmakeFilePath = join(folder.fsPath, "CMakeLists.txt");
   const picoBoardRegex = /^set\(PICO_BOARD\s+([^)]+)\)$/m;
 
@@ -311,8 +315,8 @@ export async function cmakeUpdateBoard(
  * Updates the sdk and toolchain relay paths in the CMakeLists.txt file.
  *
  * @param folder The root folder of the workspace to configure.
- * @param newSDKVersion The verison in "$HOME/.picosdk/sdk/${newSDKVersion}"
- * @param newToolchainVersion The verison in "$HOME/.picosdk/toolchain/${newToolchainVersion}"
+ * @param newSDKVersion The version in "$HOME/.picosdk/sdk/${newSDKVersion}"
+ * @param newToolchainVersion The version in "$HOME/.picosdk/toolchain/${newToolchainVersion}"
  */
 export async function cmakeUpdateSDK(
   folder: Uri,
@@ -321,7 +325,7 @@ export async function cmakeUpdateSDK(
   newPicotoolVersion: string,
   reconfigure: boolean = true
 ): Promise<boolean> {
-  // TODO: support for scaning for seperate locations of the CMakeLists.txt file in the project
+  // TODO: support for scanning for separate locations of the CMakeLists.txt file in the project
   const cmakeFilePath = join(folder.fsPath, "CMakeLists.txt");
   // This regex requires multiline (m) and dotall (s) flags to work
   const updateSectionRegex = new RegExp(
@@ -437,7 +441,7 @@ export async function cmakeUpdateSDK(
  * Extracts the sdk and toolchain versions from the CMakeLists.txt file.
  *
  * @param cmakeFilePath The path to the CMakeLists.txt file.
- * @returns An tupple with the [sdk, toolchain, picotool] versions or null if the file could not
+ * @returns A tuple with the [sdk, toolchain, picotool] versions or null if the file could not
  * be read or the versions could not be extracted.
  */
 export async function cmakeGetSelectedToolchainAndSDKVersions(

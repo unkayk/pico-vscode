@@ -39,6 +39,12 @@ def GDB_NAME():
     return f"{COMPILER_TRIPLE}-gdb"
 
 
+# if you change the do not edit headline you need to change the check for it in cmakeUtil.mts
+CMAKE_DO_NOT_EDIT_HEADER_PREFIX = "== DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work =="
+CMAKE_DO_NOT_EDIT_HEADER_PREFIX_OLD = (
+    "== DO NEVER EDIT THE NEXT LINES for Raspberry Pi Pico VS Code Extension to work =="
+)
+
 VSCODE_LAUNCH_FILENAME = "launch.json"
 VSCODE_C_PROPERTIES_FILENAME = "c_cpp_properties.json"
 VSCODE_CMAKE_KITS_FILENAME = "cmake-kits.json"
@@ -607,7 +613,7 @@ def ParseCommandLine():
     parser.add_argument(
         "-tcVersion",
         "--toolchainVersion",
-        help="ARM/RISCV Embeded Toolchain version to use (required)",
+        help="ARM/RISCV Embedded Toolchain version to use (required)",
     )
     parser.add_argument(
         "-picotoolVersion",
@@ -736,9 +742,8 @@ def GenerateCMake(folder, params):
         "# (note this can come from environment, CMake cache etc)\n\n"
     )
 
-    # if you change the do not edit headline you need to change the check for it in extension.mts
     cmake_header_us = (
-        "# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==\n"
+        f"# {CMAKE_DO_NOT_EDIT_HEADER_PREFIX}\n"
         "if(WIN32)\n"
         "    set(USERHOME $ENV{USERPROFILE})\n"
         "else()\n"
@@ -774,11 +779,24 @@ def GenerateCMake(folder, params):
             lines = file.readlines()
             file.seek(0)
             if not params["wantExample"]:
-                # Prexisting CMake configuration - just adding cmake_header_us
-                file.write(cmake_header_us)
-                # If no PICO_BOARD, then add a line for that, defaulting to pico
-                if not any(["set(PICO_BOARD" in line for line in lines]):
-                    file.write(f'set(PICO_BOARD pico CACHE STRING "Board type")\n\n')
+                if CMAKE_DO_NOT_EDIT_HEADER_PREFIX in content:
+                    print(
+                        "Not adding duplicate header to existing Pico VS Code project"
+                    )
+                elif CMAKE_DO_NOT_EDIT_HEADER_PREFIX_OLD in content:
+                    print("Replacing old header with new")
+                    content = content.replace(
+                        CMAKE_DO_NOT_EDIT_HEADER_PREFIX_OLD,
+                        CMAKE_DO_NOT_EDIT_HEADER_PREFIX,
+                    )
+                else:
+                    # Preexisting CMake configuration - just adding cmake_header_us
+                    file.write(cmake_header_us)
+                    # If no PICO_BOARD, then add a line for that, defaulting to pico
+                    if not any(["set(PICO_BOARD" in line for line in lines]):
+                        file.write(
+                            f'set(PICO_BOARD pico CACHE STRING "Board type")\n\n'
+                        )
                 file.write(content)
             else:
                 if any(
@@ -1354,7 +1372,7 @@ def DoEverything(params):
             params["wantEntryProjName"],
         )
 
-        # If we have any ancilliary files, copy them to our project folder
+        # If we have any ancillary files, copy them to our project folder
         # Currently only the picow with lwIP support needs an extra file, so just check that list
         for feat in features_and_examples:
             if feat in features_list:
@@ -1436,7 +1454,7 @@ if __name__ == "__main__":
     CheckSystemType()
 
     if args.name == None:
-        print("No project name specfied\n")
+        print("No project name specified\n")
         sys.exit(-1)
 
     # Check if we were provided a compiler path, and override the default if so
@@ -1445,7 +1463,7 @@ if __name__ == "__main__":
             codeToolchainPath(args.toolchainVersion) + "/bin/" + COMPILER_NAME()
         )
     else:
-        print("No toolchain version specfied\n")
+        print("No toolchain version specified\n")
         sys.exit(-1)
 
     projectRoot = Path(os.getcwd()) if not args.projectRoot else Path(args.projectRoot)
